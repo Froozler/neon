@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Neon Orbit: Commander</title>
+    <style>
+        :root {
+            --bg-color: #050508;
+            --text-muted: #8b9bb4;
+            --danger: #ff2a2a;
+            --primary: #66fcf1;
+        }
+
+        body, html {
+            margin: 0; padding: 0; width: 100%; height: 100%;
+            background-color: var(--bg-color); overflow: hidden;
+            font-family: 'Segoe UI', Tahoma, sans-serif;
+            touch-action: none; user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        canvas { display: block; width: 100%; height: 100%; }
+
+        #ui-layer {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; display: flex; flex-direction: column;
+            justify-content: center; align-items: center; text-align: center;
+        }
+
+        #hud {
+            position: absolute; top: 0; left: 0; width: 100%;
+            padding: 20px 0; display: flex; justify-content: space-around;
+            background: linear-gradient(to bottom, rgba(0,0,0,0.8), transparent);
+            font-size: 1.5rem; font-weight: 900; letter-spacing: 2px;
+            text-transform: uppercase; transition: opacity 0.3s;
+        }
+        
+        .hud-stat { display: flex; flex-direction: column; }
+        .hud-label { font-size: 0.7rem; color: var(--text-muted); letter-spacing: 3px; }
+        .hud-val { color: #fff; text-shadow: 0 0 10px rgba(255,255,255,0.5); font-size: 2rem; }
+        #liveLives { color: var(--danger); text-shadow: 0 0 10px rgba(255, 42, 42, 0.5); }
+
+        .score-bg {
+            position: absolute; top: 50%; transform: translateY(-50%);
+            font-size: 30vw; font-weight: 900; color: rgba(255, 255, 255, 0.03);
+            z-index: -1; transition: all 0.2s ease; margin: 0;
+        }
+
+        .screen { display: flex; flex-direction: column; align-items: center; transition: opacity 0.3s ease; }
+        
+        h1 { font-size: 3.5rem; margin: 0; color: #fff; text-transform: uppercase; letter-spacing: 3px; }
+        p { font-size: 1.1rem; color: var(--text-muted); margin-top: 10px; margin-bottom: 5px; }
+        
+        .hidden { opacity: 0; pointer-events: none; display: none !important; }
+
+        .btn {
+            pointer-events: auto; margin-top: 30px; padding: 18px 50px;
+            font-size: 1.2rem; background: transparent; color: #fff;
+            border: 2px solid #fff; border-radius: 50px; cursor: pointer;
+            text-transform: uppercase; font-weight: 800; letter-spacing: 1px;
+            box-shadow: 0 0 15px rgba(255,255,255,0.2); transition: all 0.15s ease;
+        }
+
+        .btn:active { background: #fff; color: #000; transform: scale(0.95); }
+
+        #phaseAnnounce {
+            position: absolute; top: 35%; font-size: 3rem; font-weight: 900;
+            color: #fff; text-shadow: 0 0 20px #fff; opacity: 0;
+            pointer-events: none; transform: scale(0.5); transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .announce-active { opacity: 1 !important; transform: scale(1) !important; }
+    </style>
+</head>
+<body>
+
+    <canvas id="gameCanvas"></canvas>
+    
+    <div id="ui-layer">
+        <div id="hud" class="hidden">
+            <div class="hud-stat"><span class="hud-label">Score</span><span class="hud-val" id="liveScore">0</span></div>
+            <div class="hud-stat"><span class="hud-label">Phase</span><span class="hud-val" id="livePhase">1</span></div>
+            <div class="hud-stat"><span class="hud-label">Lives</span><span class="hud-val" id="liveLives">3</span></div>
+        </div>
+
+        <div class="score-bg" id="bgScore">0</div>
+        <div id="phaseAnnounce">PHASE 2</div>
+        
+        <div id="startScreen" class="screen">
+            <h1 id="titleText" style="text-shadow: 0 0 20px #66fcf1;">NEON ORBIT</h1>
+            <p>Tap to reverse. Evade hostiles.</p>
+            <p>Grab the Hearts.</p>
+            <button class="btn" id="startBtn" style="border-color: #66fcf1; color: #66fcf1;">Engage</button>
+        </div>
+
+        <div id="gameOverScreen" class="screen hidden">
+            <h1 style="color: var(--danger); text-shadow: 0 0 20px rgba(255, 42, 42, 0.8);">M.I.A.</h1>
+            <p>Score: <strong id="finalScore" style="color: white; font-size: 1.8rem;">0</strong></p>
+            <p>Rank: <strong id="finalRank" style="color: var(--primary); font-size: 1.5rem; text-transform: uppercase;">Recruit</strong></p>
+            <p style="margin-top: 15px; font-size: 0.9rem;">Best: <strong id="highScoreText">0</strong></p>
+            <button class="btn" id="restartBtn" style="border-color: var(--danger); color: var(--danger);">Deploy Again</button>
+        </div>
+    </div>
+
+<script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    // UI Elements
+    const screens = { start: document.getElementById('startScreen'), gameOver: document.getElementById('gameOverScreen'), hud: document.getElementById('hud') };
+    const els = {
+        bgScore: document.getElementById('bgScore'), liveScore: document.getElementById('liveScore'),
+        livePhase: document.getElementById('livePhase'), liveLives: document.getElementById('liveLives'),
+        finalScore: document.getElementById('finalScore'), finalRank: document.getElementById('finalRank'),
+        highScoreText: document.getElementById('highScoreText'), announce: document.getElementById('phaseAnnounce'),
+        startBtn: document.getElementById('startBtn'), restartBtn: document.getElementById('restartBtn')
+    };
+
+    // Game State
+    let state = 'START';
+    let score = 0, phase = 1, lives = 3, nextLifeScore = 100;
+    let savedHighScore = localStorage.getItem('neonOrbitHighScore') || 0;
+    let lastTime = 0, gameTime = 0, shake = 0, globalHue = 180;
+    let width, height, centerX, centerY;
+    let invulnerableTimer = 0;
+
+    // Responsive Config
+    let baseOrbitRadius, coreRadius;
+
+    // Entities
+    let player, enemies, particles, floatingTexts, lasers, hearts;
+    let corePulse = 0;
+
+    // Difficulty
+    let spawnRate, timeSinceLastSpawn, baseEnemySpeed;
+
+    function resizeCanvas() {
+        const dpr = window.devicePixelRatio || 1;
+        width = window.innerWidth; height = window.innerHeight;
+        canvas.width = width * dpr; canvas.height = height * dpr;
+        ctx.scale(dpr, dpr);
+        centerX = width / 2; centerY = height / 2;
+        
+        // Dynamically scale game area to fit all screen aspect ratios
+        let minDim = Math.min(width, height);
+        baseOrbitRadius = minDim * 0.32; 
+        coreRadius = minDim * 0.06;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    function getRank(s) {
+        if (s < 15) return "Recruit";
+        if (s < 40) return "Private";
+        if (s < 80) return "Corporal";
+        if (s < 150) return "Sergeant";
+        if (s < 250) return "Lieutenant";
+        if (s < 400) return "Captain";
+        if (s < 600) return "Major";
+        if (s < 1000) return "Colonel";
+        return "5-Star General";
+    }
+
+    function handleInput(e) {
+        if (state === 'PLAYING') {
+            e.preventDefault();
+            player.dir *= -1;
+            player.spinSpeed = 15 * player.dir;
+            createExplosion(player.x, player.y, `hsl(${globalHue}, 100%, 60%)`, 5, 200);
+        }
+    }
+    window.addEventListener('touchstart', handleInput, { passive: false });
+    window.addEventListener('mousedown', handleInput);
+
+    els.startBtn.addEventListener('click', startGame);
+    els.startBtn.addEventListener('touchstart', (e) => { e.preventDefault(); startGame(); });
+    els.restartBtn.addEventListener('click', startGame);
+    els.restartBtn.addEventListener('touchstart', (e) => { e.preventDefault(); startGame(); });
+
+    function startGame() {
+        state = 'PLAYING';
+        score = 0; phase = 1; lives = 3; nextLifeScore = 100; gameTime = 0; shake = 0; globalHue = 180; invulnerableTimer = 0;
+        
+        els.liveScore.innerText = score; els.bgScore.innerText = score; 
+        els.livePhase.innerText = phase; els.liveLives.innerText = lives;
+        
+        screens.start.classList.add('hidden');
+        screens.gameOver.classList.add('hidden');
+        screens.hud.classList.remove('hidden');
+        
+        player = { angle: 0, speed: 3.5, radius: coreRadius*0.5, dir: 1, trail: [], rotation: 0, spinSpeed: 0, x: 0, y: 0 };
+        enemies = []; particles = []; floatingTexts = []; lasers = []; hearts = [];
+        spawnRate = 1200; timeSinceLastSpawn = 0; baseEnemySpeed = 120;
+        
+        lastTime = performance.now();
+        requestAnimationFrame(gameLoop);
+    }
+
+    function takeDamage() {
+        if (invulnerableTimer > 0) return;
+        
+        lives--;
+        els.liveLives.innerText = lives;
+        shake = 25;
+        createExplosion(player.x, player.y, '#ff2a2a', 40, 500);
+
+        if (lives <= 0) {
+            gameOver();
+        } else {
+            invulnerableTimer = 2.0; // 2 seconds of Invincibility Frames
+            enemies = []; // Clear field to give breathing room
+            lasers = [];
+            spawnFloatingText(player.x, player.y - 40, "WARNING!", '#ff2a2a');
+        }
+    }
+
+    function gameOver() {
+        state = 'GAMEOVER';
+        shake = 40;
+        
+        // Handle High Score
+        if (score > savedHighScore) {
+            savedHighScore = score;
+            localStorage.setItem('neonOrbitHighScore', savedHighScore);
+        }
+        
+        els.finalScore.innerText = score;
+        els.highScoreText.innerText = savedHighScore;
+        els.finalRank.innerText = getRank(score);
+        
+        screens.hud.classList.add('hidden');
+        screens.gameOver.classList.remove('hidden');
+    }
+
+    function triggerPhaseUp() {
+        phase++; els.livePhase.innerText = phase;
+        globalHue = (globalHue + 60) % 360;
+        
+        els.announce.innerText = `PHASE ${phase}`;
+        els.announce.style.color = `hsl(${globalHue}, 100%, 60%)`;
+        els.announce.style.textShadow = `0 0 20px hsl(${globalHue}, 100%, 60%)`;
+        els.announce.classList.add('announce-active');
+        shake = 15;
+        
+        setTimeout(() => els.announce.classList.remove('announce-active'), 1500);
+
+        player.speed += 0.3;
+        baseEnemySpeed += 20;
+        spawnRate = Math.max(400, spawnRate - 100);
+    }
+
+    function spawnEnemy() {
+        const angle = Math.random() * Math.PI * 2;
+        const spawnDist = Math.max(width, height) + 50;
+        const type = Math.random() > 0.8 && phase >= 2 ? 'homing' : 'basic';
+        enemies.push({
+            x: centerX + Math.cos(angle) * spawnDist, y: centerY + Math.sin(angle) * spawnDist,
+            radius: coreRadius * 0.3 + (Math.random() * 4),
+            speed: baseEnemySpeed + (Math.random() * 50),
+            type: type, wobble: Math.random() * Math.PI * 2
+        });
+    }
+
+    function spawnLaser() {
+        if(phase < 2) return;
+        let targetAngle = player.angle + (player.dir * 1.5); 
+        lasers.push({ angle: targetAngle, state: 'warning', timer: 1.5, width: 0 });
+    }
+
+    function spawnHeart() {
+        let angle = Math.random() * Math.PI * 2;
+        let dist = Math.max(width, height) + 50;
+        hearts.push({
+            x: centerX + Math.cos(angle) * dist,
+            y: centerY + Math.sin(angle) * dist,
+            // Move slow and steady straight across the general center area
+            vx: -Math.cos(angle) * 40,
+            vy: -Math.sin(angle) * 40,
+            pulse: 0
+        });
+    }
+
+    function spawnFloatingText(x, y, text, color) {
+        floatingTexts.push({ x, y, text, life: 1.0, color });
+    }
+
+    function createExplosion(x, y, color, count, velocity = 300) {
+        for(let i=0; i<count; i++) {
+            particles.push({
+                x: x, y: y,
+                vx: (Math.random() - 0.5) * velocity, vy: (Math.random() - 0.5) * velocity,
+                life: 1.0 + Math.random() * 0.5, color: color, size: Math.random() * 4 + 1
+            });
+        }
+    }
+
+    function getOrbitPos(angle, t) {
+        let r = baseOrbitRadius; let tx, ty;
+        if (phase === 1) {
+            tx = Math.cos(angle) * r; ty = Math.sin(angle) * r;
+        } else if (phase === 2) {
+            r += Math.sin(angle * 6 + t * 5) * (r*0.15);
+            tx = Math.cos(angle) * r; ty = Math.sin(angle) * r;
+        } else if (phase === 3) {
+            tx = Math.cos(angle) * (r + Math.sin(t*4)*(r*0.3));
+            ty = Math.sin(angle) * (r - Math.sin(t*4)*(r*0.2));
+        } else {
+            tx = Math.cos(angle) * (r + Math.sin(angle*3 + t*5)*(r*0.25));
+            ty = Math.sin(angle * 2) * (r * 0.8) + Math.cos(t*6)*(r*0.1); 
+        }
+        return { x: centerX + tx, y: centerY + ty };
+    }
+
+    function drawPolygon(x, y, radius, sides, rotation, color) {
+        ctx.beginPath();
+        if (sides <= 2) {
+            ctx.arc(x, y, radius, 0, Math.PI * 2);
+        } else {
+            for (let i = 0; i < sides; i++) {
+                let a = rotation + (i * Math.PI * 2) / sides;
+                let px = x + Math.cos(a) * radius;
+                let py = y + Math.sin(a) * radius;
+                if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+            }
+            ctx.closePath();
+        }
+        ctx.fillStyle = color;
+        ctx.shadowBlur = 15; ctx.shadowColor = color;
+        ctx.fill(); ctx.shadowBlur = 0;
+    }
+
+    function drawHeartPath(x, y, size, pulse) {
+        let s = size + Math.sin(pulse) * 3; // Pulsing effect
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.scale(s/20, s/20);
+        ctx.beginPath();
+        ctx.moveTo(0, -5);
+        ctx.bezierCurveTo(-10, -15, -20, -5, 0, 10);
+        ctx.bezierCurveTo(20, -5, 10, -15, 0, -5);
+        ctx.fillStyle = '#ff2a2a';
+        ctx.shadowBlur = 20; ctx.shadowColor = '#ff2a2a';
+        ctx.fill();
+        ctx.restore();
+    }
+
+    function update(dt) {
+        const dtSec = dt / 1000;
+        gameTime += dtSec;
+        let playerColor = `hsl(${globalHue}, 100%, 60%)`;
+
+        if (state === 'PLAYING') {
+            // I-Frames Timer
+            if (invulnerableTimer > 0) invulnerableTimer -= dtSec;
+
+            // Check for Extra Life
+            if (score >= nextLifeScore) {
+                spawnHeart();
+                nextLifeScore += 100;
+                spawnFloatingText(centerX, centerY - 60, "EXTRA LIFE DEPLOYED", '#ff2a2a');
+            }
+
+            // Phase Up Logic
+            if (score > 0 && score % 15 === 0 && phase === Math.floor(score/15)) triggerPhaseUp();
+
+            // Player Update
+            player.angle += player.speed * player.dir * dtSec;
+            player.rotation += player.spinSpeed * dtSec;
+            player.spinSpeed *= 0.9;
+            if(Math.abs(player.spinSpeed) < 2) player.spinSpeed = 2 * player.dir;
+
+            let pos = getOrbitPos(player.angle, gameTime);
+            player.x = pos.x; player.y = pos.y;
+
+            // Trail
+            player.trail.push({x: player.x, y: player.y, alpha: 1});
+            if (player.trail.length > 20) player.trail.shift();
+
+            // Spawns
+            timeSinceLastSpawn += dt;
+            if (timeSinceLastSpawn > spawnRate) {
+                spawnEnemy();
+                timeSinceLastSpawn = 0;
+                if(Math.random() < 0.2 + (phase*0.05)) spawnLaser();
+            }
+
+            // Hearts Update
+            for (let i = hearts.length - 1; i >= 0; i--) {
+                let h = hearts[i];
+                h.x += h.vx * dtSec; h.y += h.vy * dtSec;
+                h.pulse += dtSec * 8;
+                
+                // Collect Heart
+                if (Math.hypot(player.x - h.x, player.y - h.y) < player.radius + 20) {
+                    lives++; els.liveLives.innerText = lives;
+                    hearts.splice(i, 1);
+                    spawnFloatingText(player.x, player.y, "+1 LIFE", '#ff2a2a');
+                    createExplosion(player.x, player.y, '#ff2a2a', 20, 150);
+                    continue;
+                }
+                
+                // Cleanup Heart if way off screen
+                if (Math.hypot(centerX - h.x, centerY - h.y) > Math.max(width, height) + 200) {
+                    hearts.splice(i, 1);
+                }
+            }
+
+            // Lasers Update
+            for (let i = lasers.length - 1; i >= 0; i--) {
+                let l = lasers[i];
+                l.timer -= dtSec;
+                if (l.state === 'warning' && l.timer <= 0) {
+                    l.state = 'firing'; l.timer = 0.3; l.width = coreRadius * 1.5;
+                    shake = 10;
+                } else if (l.state === 'firing') {
+                    l.width *= 0.8;
+                    let pAng = Math.atan2(player.y - centerY, player.x - centerX);
+                    let diff = Math.abs(Math.atan2(Math.sin(pAng - l.angle), Math.cos(pAng - l.angle)));
+                    if (diff < 0.15) takeDamage();
+                    if (l.timer <= 0) lasers.splice(i, 1);
+                }
+            }
+
+            // Enemies Update
+            for (let i = enemies.length - 1; i >= 0; i--) {
+                let e = enemies[i];
+                
+                if (e.type === 'homing') {
+                    let pAng = Math.atan2(player.y - e.y, player.x - e.x);
+                    let eAng = Math.atan2(centerY - e.y, centerX - e.x);
+                    let angleToMove = eAng + (Math.sin(pAng - eAng) * 0.4);
+                    e.x += Math.cos(angleToMove) * e.speed * dtSec;
+                    e.y += Math.sin(angleToMove) * e.speed * dtSec;
+                } else {
+                    e.wobble += dtSec * 10;
+                    let dx = centerX - e.x; let dy = centerY - e.y;
+                    let dist = Math.hypot(dx, dy);
+                    e.x += (dx / dist) * e.speed * dtSec + Math.cos(e.wobble)*1.5;
+                    e.y += (dy / dist) * e.speed * dtSec + Math.sin(e.wobble)*1.5;
+                }
+
+                let distToCore = Math.hypot(centerX - e.x, centerY - e.y);
+
+                if (distToCore < coreRadius) {
+                    enemies.splice(i, 1);
+                    score++;
+                    els.liveScore.innerText = score; els.bgScore.innerText = score;
+                    els.bgScore.style.transform = `translateY(-50%) scale(1.1)`;
+                    setTimeout(() => els.bgScore.style.transform = `translateY(-50%) scale(1)`, 100);
+                    
+                    corePulse = 1.0;
+                    shake = Math.min(shake + 2, 8);
+                    createExplosion(centerX, centerY, playerColor, 10, 150);
+                    spawnFloatingText(centerX + (Math.random()-0.5)*40, centerY - 30, "+1", '#fff');
+                    continue;
+                }
+
+                if (Math.hypot(player.x - e.x, player.y - e.y) < player.radius + e.radius) {
+                    takeDamage();
+                }
+            }
+        }
+
+        // Cleanup & Visuals Update
+        if (corePulse > 0) corePulse -= dtSec * 3;
+        if (corePulse < 0) corePulse = 0;
+        if (shake > 0) shake *= 0.85; 
+        if (shake < 0.5) shake = 0;
+
+        player.trail.forEach(t => t.alpha -= dtSec * 2.5);
+        
+        for (let i = particles.length - 1; i >= 0; i--) {
+            let p = particles[i];
+            p.x += p.vx * dtSec; p.y += p.vy * dtSec; p.life -= dtSec;
+            if (p.life <= 0) particles.splice(i, 1);
+        }
+
+        for (let i = floatingTexts.length - 1; i >= 0; i--) {
+            let ft = floatingTexts[i];
+            ft.y -= dtSec * 50; ft.life -= dtSec * 1.5;
+            if (ft.life <= 0) floatingTexts.splice(i, 1);
+        }
+    }
+
+    function draw() {
+        ctx.fillStyle = `rgba(5, 5, 8, ${state === 'GAMEOVER' ? 0.1 : 0.3})`;
+        ctx.fillRect(0, 0, width, height);
+
+        let playerColor = `hsl(${globalHue}, 100%, 60%)`;
+        let enemyColor = `hsl(${(globalHue + 180) % 360}, 100%, 60%)`;
+
+        ctx.save();
+        if (shake > 0) ctx.translate((Math.random() - 0.5) * shake, (Math.random() - 0.5) * shake);
+
+        // Draw Dynamic Orbit Path
+        ctx.beginPath();
+        for (let a = 0; a < Math.PI * 2; a += 0.1) {
+            let p = getOrbitPos(a, gameTime);
+            if (a === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y);
+        }
+        ctx.closePath();
+        ctx.strokeStyle = `hsla(${globalHue}, 50%, 50%, 0.15)`;
+        ctx.lineWidth = 3; ctx.stroke();
+
+        // Draw Lasers
+        lasers.forEach(l => {
+            let lx = centerX + Math.cos(l.angle) * Math.max(width, height);
+            let ly = centerY + Math.sin(l.angle) * Math.max(width, height);
+            ctx.beginPath(); ctx.moveTo(centerX, centerY); ctx.lineTo(lx, ly);
+            if (l.state === 'warning') {
+                ctx.strokeStyle = `rgba(255, 0, 0, ${0.3 + Math.sin(gameTime*20)*0.2})`;
+                ctx.lineWidth = 2; ctx.setLineDash([10, 10]); ctx.stroke(); ctx.setLineDash([]);
+            } else {
+                ctx.strokeStyle = '#fff'; ctx.lineWidth = l.width;
+                ctx.shadowBlur = 20; ctx.shadowColor = '#f00';
+                ctx.stroke(); ctx.shadowBlur = 0;
+            }
+        });
+
+        // Draw Core
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, coreRadius + (corePulse * 15), 0, Math.PI * 2);
+        ctx.fillStyle = '#fff';
+        ctx.shadowBlur = 30 * corePulse + 10; ctx.shadowColor = playerColor;
+        ctx.fill(); ctx.shadowBlur = 0;
+
+        // Draw Hearts
+        hearts.forEach(h => drawHeartPath(h.x, h.y, 18, h.pulse));
+
+        if (state === 'PLAYING') {
+            // Draw Trail
+            ctx.beginPath();
+            for (let i = 0; i < player.trail.length; i++) {
+                let t = player.trail[i];
+                if (t.alpha <= 0) continue;
+                if(i===0) ctx.moveTo(t.x, t.y); else ctx.lineTo(t.x, t.y);
+            }
+            ctx.strokeStyle = playerColor;
+            ctx.lineWidth = 5; ctx.lineCap = 'round';
+            ctx.globalAlpha = 0.5; ctx.stroke(); ctx.globalAlpha = 1.0;
+
+            // Draw Morphing Player (blink if invulnerable)
+            if (invulnerableTimer <= 0 || Math.floor(gameTime * 20) % 2 === 0) {
+                let sides = phase === 1 ? 0 : Math.min(phase + 1, 5);
+                drawPolygon(player.x, player.y, player.radius + (Math.sin(gameTime*10)*2), sides, player.rotation, playerColor);
+            }
+        }
+
+        // Draw Enemies
+        enemies.forEach(e => {
+            ctx.beginPath();
+            if(e.type === 'homing') {
+                drawPolygon(e.x, e.y, e.radius+2, 4, e.wobble, enemyColor);
+            } else {
+                ctx.arc(e.x, e.y, e.radius, 0, Math.PI * 2);
+                ctx.fillStyle = enemyColor;
+                ctx.shadowBlur = 15; ctx.shadowColor = enemyColor;
+                ctx.fill(); ctx.shadowBlur = 0;
+            }
+        });
+
+        // Draw Particles & Floating Text
+        particles.forEach(p => {
+            ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+            ctx.fillStyle = p.color; ctx.globalAlpha = Math.max(0, p.life); ctx.fill();
+        });
+        ctx.globalAlpha = 1.0;
+
+        ctx.font = "bold 20px 'Segoe UI'"; ctx.textAlign = "center";
+        floatingTexts.forEach(ft => {
+            ctx.fillStyle = ft.color; ctx.globalAlpha = Math.max(0, ft.life);
+            ctx.fillText(ft.text, ft.x, ft.y);
+        });
+        ctx.globalAlpha = 1.0;
+        ctx.restore(); 
+    }
+
+    function gameLoop(timestamp) {
+        let dt = timestamp - lastTime; lastTime = timestamp;
+        if (dt > 100) dt = 16; 
+        update(dt); draw();
+        
+        if (state === 'PLAYING' || particles.length > 0 || hearts.length > 0) requestAnimationFrame(gameLoop);
+        else if (state === 'START' || state === 'GAMEOVER') requestAnimationFrame(gameLoop);
+    }
+    
+    requestAnimationFrame(gameLoop);
+</script>
+  <script>
+    if ("serviceWorker" in navigator) { navigator.serviceWorker.register("sw.js"); }
+  </script>
+</body>
+</html>
