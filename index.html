@@ -21,12 +21,13 @@
             -webkit-tap-highlight-color: transparent;
         }
 
-        canvas { display: block; width: 100%; height: 100%; }
+        canvas { display: block; width: 100%; height: 100%; z-index: 1; }
 
         #ui-layer {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             pointer-events: none; display: flex; flex-direction: column;
             justify-content: center; align-items: center; text-align: center;
+            z-index: 5;
         }
 
         #hud {
@@ -39,12 +40,12 @@
         
         .hud-stat { display: flex; flex-direction: column; align-items: center; }
         .hud-label { font-size: 0.7rem; color: var(--text-muted); letter-spacing: 3px; }
-        .hud-val { color: #fff; text-shadow: 0 0 10px rgba(255,255,255,0.5); font-size: 2rem; display: flex; align-items: baseline; justify-content: center; }
+        .hud-val { color: #fff; font-size: 2rem; display: flex; align-items: baseline; justify-content: center; }
         
-        #liveMult { font-size: 1rem; color: var(--combo); margin-left: 6px; text-shadow: 0 0 10px rgba(255, 235, 59, 0.5); transition: transform 0.2s; }
+        #liveMult { font-size: 1rem; color: var(--combo); margin-left: 6px; transition: transform 0.2s; }
         .mult-bump { transform: scale(1.5); }
         
-        #liveLives { color: var(--danger); text-shadow: 0 0 10px rgba(255, 42, 42, 0.5); }
+        #liveLives { color: var(--danger); }
 
         .score-bg {
             position: absolute; top: 50%; transform: translateY(-50%);
@@ -52,19 +53,30 @@
             z-index: -1; transition: all 0.2s ease; margin: 0;
         }
 
-        .screen { display: flex; flex-direction: column; align-items: center; transition: opacity 0.5s ease; position: absolute; width: 100%; height: 100%; justify-content: center; }
+        /* Fixed the ghost-click issue by adding visibility: hidden to the transition */
+        .screen { 
+            display: flex; flex-direction: column; align-items: center; 
+            position: absolute; width: 100%; height: 100%; justify-content: center; 
+            transition: opacity 0.3s ease, visibility 0s 0s;
+            visibility: visible;
+        }
         
         h1 { font-size: 4rem; margin: 0; color: #fff; text-transform: uppercase; letter-spacing: 5px; }
         p { font-size: 1.1rem; color: var(--text-muted); margin-top: 10px; margin-bottom: 5px; max-width: 80%; line-height: 1.6; }
         
-        .hidden { opacity: 0; pointer-events: none; z-index: -10; }
+        .hidden { 
+            opacity: 0; 
+            pointer-events: none; 
+            visibility: hidden; 
+            transition: opacity 0.3s ease, visibility 0s 0.3s; /* Delay visibility hidden so it fades out first */
+        }
 
         .btn {
             pointer-events: auto; margin-top: 30px; padding: 18px 50px;
             font-size: 1.2rem; background: transparent; color: #fff;
             border: 2px solid #fff; border-radius: 50px; cursor: pointer;
             text-transform: uppercase; font-weight: 800; letter-spacing: 1px;
-            box-shadow: 0 0 15px rgba(255,255,255,0.2); transition: all 0.15s ease;
+            transition: all 0.15s ease;
         }
 
         .btn:active { background: #fff; color: #000; transform: scale(0.95); }
@@ -72,13 +84,13 @@
         #loreScreen { background-color: var(--bg-color); z-index: 10; }
         .lore-line { opacity: 0; transform: translateY(10px); transition: all 2s ease; color: #c5c6c7; font-size: 1.3rem; letter-spacing: 1px; margin-bottom: 20px; font-style: italic; }
         .lore-visible { opacity: 1; transform: translateY(0); }
-        #loreTapText { margin-top: 40px; color: var(--primary); opacity: 0; animation: pulseText 2s infinite alternate; font-style: normal; font-weight: bold; font-size: 1rem; text-transform: uppercase; letter-spacing: 3px; cursor: pointer; pointer-events: auto; }
-        @keyframes pulseText { from { opacity: 0.3; } to { opacity: 1; text-shadow: 0 0 10px var(--primary); } }
+        #loreTapText { margin-top: 40px; color: var(--primary); opacity: 0; animation: pulseText 2s infinite alternate; font-style: normal; font-weight: bold; font-size: 1rem; text-transform: uppercase; letter-spacing: 3px; cursor: pointer; pointer-events: auto; padding: 20px;}
+        @keyframes pulseText { from { opacity: 0.3; } to { opacity: 1; } }
 
         #phaseAnnounce {
             position: absolute; top: 35%; font-size: 3rem; font-weight: 900;
-            color: #fff; text-shadow: 0 0 20px #fff; opacity: 0;
-            pointer-events: none; transform: scale(0.5); transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            color: #fff; opacity: 0; pointer-events: none; 
+            transform: scale(0.5); transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
         .announce-active { opacity: 1 !important; transform: scale(1) !important; }
     </style>
@@ -101,7 +113,7 @@
         <div id="phaseAnnounce">PHASE 2</div>
         
         <div id="startScreen" class="screen">
-            <h1 id="titleText" style="text-shadow: 0 0 30px #66fcf1;">NEON</h1>
+            <h1 id="titleText" style="color: #66fcf1;">NEON</h1>
             <p>Tap to reverse. Evade hostiles.</p>
             <button class="btn" id="startBtn" style="border-color: #66fcf1; color: #66fcf1;">Engage</button>
         </div>
@@ -115,7 +127,7 @@
         </div>
 
         <div id="gameOverScreen" class="screen hidden">
-            <h1 style="color: var(--danger); text-shadow: 0 0 20px rgba(255, 42, 42, 0.8);">EXTINGUISHED</h1>
+            <h1 style="color: var(--danger);">EXTINGUISHED</h1>
             <p>Score: <strong id="finalScore" style="color: white; font-size: 1.8rem;">0</strong></p>
             <p>Rank: <strong id="finalRank" style="color: var(--primary); font-size: 1.5rem; text-transform: uppercase;">Recruit</strong></p>
             <p style="margin-top: 15px; font-size: 0.9rem;">Best: <strong id="highScoreText">0</strong></p>
@@ -148,61 +160,45 @@
     let invulnerableTimer = 0;
     let hasSeenLore = false;
 
-    // Responsive Config
     let baseOrbitRadius, coreRadius;
-
-    // Entities
     let player, enemies = [], particles = [], floatingTexts = [], lasers = [], hearts = [];
     let corePulse = 0;
-
-    // Difficulty
     let spawnRate = 1200, timeSinceLastSpawn = 0, baseEnemySpeed = 120;
 
-    // Audio System
-    let audioCtx;
-    let musicIntervalStep = 0;
-    let nextNoteTime = 0;
+    // Audio Engine
+    let audioCtx, musicIntervalStep = 0, nextNoteTime = 0;
 
     function initAudio() {
-        if (!audioCtx) {
-            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        }
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         if (audioCtx.state === 'suspended') audioCtx.resume();
     }
 
     function playTone(freq, type, duration, vol = 0.1) {
         if (!audioCtx) return;
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        osc.type = type;
-        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-        
-        gain.gain.setValueAtTime(vol, audioCtx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
-        
-        osc.connect(gain);
-        gain.connect(audioCtx.destination);
-        osc.start();
-        osc.stop(audioCtx.currentTime + duration);
+        try {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+            gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            osc.start(); osc.stop(audioCtx.currentTime + duration);
+        } catch(e) {} // Failsafe for tab-switching
     }
 
     function playSFX(name) {
         if (!audioCtx) return;
         if (name === 'reverse') playTone(880, 'square', 0.05, 0.05);
         if (name === 'score') playTone(1200, 'sine', 0.1, 0.1);
-        if (name === 'damage') {
-            playTone(150, 'sawtooth', 0.5, 0.3);
-            playTone(100, 'square', 0.5, 0.3);
-        }
+        if (name === 'damage') { playTone(150, 'sawtooth', 0.5, 0.3); playTone(100, 'square', 0.5, 0.3); }
         if (name === 'phaseUp') {
-            const osc = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
-            osc.frequency.setValueAtTime(400, audioCtx.currentTime);
-            osc.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + 0.5);
-            gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
-            gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.5);
-            osc.connect(gain); gain.connect(audioCtx.destination);
-            osc.start(); osc.stop(audioCtx.currentTime + 0.5);
+            try {
+                const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
+                osc.frequency.setValueAtTime(400, audioCtx.currentTime); osc.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + 0.5);
+                gain.gain.setValueAtTime(0.15, audioCtx.currentTime); gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.5);
+                osc.connect(gain); gain.connect(audioCtx.destination); osc.start(); osc.stop(audioCtx.currentTime + 0.5);
+            } catch(e){}
         }
         if (name === 'heart') {
             setTimeout(() => playTone(600, 'sine', 0.1, 0.1), 0);
@@ -213,31 +209,25 @@
 
     function processMusic() {
         if (state !== 'PLAYING' || !audioCtx) return;
-        
         let baseTempo = 0.22; 
         let tempo = Math.max(0.12, baseTempo - (phase * 0.015)); 
-
-        // Fix: Prevent audio loop freeze if tab is inactive and time desyncs
-        if (nextNoteTime < audioCtx.currentTime) {
-            nextNoteTime = audioCtx.currentTime + 0.1;
-        }
-
-        while (nextNoteTime < audioCtx.currentTime + 0.1) {
+        
+        // Anti-lag Failsafe: Reset time if tab was backgrounded
+        if (nextNoteTime < audioCtx.currentTime) nextNoteTime = audioCtx.currentTime + 0.05;
+        
+        let notesScheduled = 0;
+        // Anti-lag Failsafe: Max 3 notes per frame
+        while (nextNoteTime < audioCtx.currentTime + 0.1 && notesScheduled < 3) {
             let freqs = [65.41, 65.41, 73.42, 82.41, 65.41, 98.00, 82.41, 73.42]; 
-            let f = freqs[musicIntervalStep % freqs.length];
-            f *= (1 + (phase-1) * 0.02);
-            
-            const osc = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
-            osc.type = 'sawtooth';
-            osc.frequency.value = f;
-            gain.gain.setValueAtTime(0.08, nextNoteTime);
-            gain.gain.exponentialRampToValueAtTime(0.001, nextNoteTime + tempo - 0.02);
-            osc.connect(gain); gain.connect(audioCtx.destination);
-            osc.start(nextNoteTime); osc.stop(nextNoteTime + tempo);
-
-            musicIntervalStep++;
-            nextNoteTime += tempo;
+            let f = freqs[musicIntervalStep % freqs.length] * (1 + (phase-1) * 0.02);
+            try {
+                const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
+                osc.type = 'sawtooth'; osc.frequency.value = f;
+                gain.gain.setValueAtTime(0.08, nextNoteTime); gain.gain.exponentialRampToValueAtTime(0.001, nextNoteTime + tempo - 0.02);
+                osc.connect(gain); gain.connect(audioCtx.destination);
+                osc.start(nextNoteTime); osc.stop(nextNoteTime + tempo);
+            } catch(e) {}
+            musicIntervalStep++; nextNoteTime += tempo; notesScheduled++;
         }
     }
 
@@ -247,43 +237,43 @@
         canvas.width = width * dpr; canvas.height = height * dpr;
         ctx.scale(dpr, dpr);
         centerX = width / 2; centerY = height / 2;
-        
         let minDim = Math.min(width, height);
-        baseOrbitRadius = minDim * 0.28; 
-        coreRadius = minDim * 0.05;
+        baseOrbitRadius = minDim * 0.28; coreRadius = minDim * 0.05;
     }
     window.addEventListener('resize', resizeCanvas);
     resizeCanvas();
 
     function getRank(s) {
-        if (s < 15) return "Spark";
-        if (s < 50) return "Cinder";
-        if (s < 120) return "Flame";
-        if (s < 250) return "Flare";
-        if (s < 400) return "Supernova";
-        if (s < 700) return "Celestial";
-        if (s < 1000) return "Galactic";
-        return "Ascendant";
+        if (s < 15) return "Spark"; if (s < 50) return "Cinder"; if (s < 120) return "Flame";
+        if (s < 250) return "Flare"; if (s < 400) return "Supernova"; if (s < 700) return "Celestial";
+        if (s < 1000) return "Galactic"; return "Ascendant";
     }
 
+    // Input Handling - Attached ONLY to canvas to prevent phantom button presses
     function handleInput(e) {
         if (state === 'PLAYING') {
             e.preventDefault();
             player.dir *= -1;
             player.spinSpeed = 15 * player.dir;
             playSFX('reverse');
-            createExplosion(player.x, player.y, `hsl(${globalHue}, 100%, 60%)`, 5, 200);
+            createExplosion(player.x, player.y, `hsl(${globalHue}, 100%, 60%)`, 3, 200);
+        } else if (state === 'LORE') {
+            startActualGame();
         }
     }
-    window.addEventListener('touchstart', handleInput, { passive: false });
-    window.addEventListener('mousedown', handleInput);
+    canvas.addEventListener('touchstart', handleInput, { passive: false });
+    canvas.addEventListener('mousedown', handleInput);
 
-    els.startBtn.addEventListener('click', handleStartBtn);
-    els.startBtn.addEventListener('touchstart', (e) => { e.preventDefault(); handleStartBtn(); });
-    els.restartBtn.addEventListener('click', startActualGame);
-    els.restartBtn.addEventListener('touchstart', (e) => { e.preventDefault(); startActualGame(); });
-    els.loreTapText.addEventListener('click', startActualGame);
-    els.loreTapText.addEventListener('touchstart', (e) => { e.preventDefault(); startActualGame(); });
+    function stopProp(e) { e.stopPropagation(); }
+
+    els.startBtn.addEventListener('click', (e) => { stopProp(e); handleStartBtn(); });
+    els.startBtn.addEventListener('touchstart', (e) => { e.preventDefault(); stopProp(e); handleStartBtn(); });
+    
+    els.restartBtn.addEventListener('click', (e) => { stopProp(e); startActualGame(); });
+    els.restartBtn.addEventListener('touchstart', (e) => { e.preventDefault(); stopProp(e); startActualGame(); });
+    
+    els.loreTapText.addEventListener('click', (e) => { stopProp(e); startActualGame(); });
+    els.loreTapText.addEventListener('touchstart', (e) => { e.preventDefault(); stopProp(e); startActualGame(); });
 
     function handleStartBtn() {
         initAudio();
@@ -303,8 +293,7 @@
 
     function startActualGame() {
         initAudio();
-        hasSeenLore = true;
-        state = 'PLAYING';
+        hasSeenLore = true; state = 'PLAYING';
         score = 0; phase = 1; lives = 5; nextLifeScore = 100; gameTime = 0; shake = 0; globalHue = 180; invulnerableTimer = 0;
         multiplier = 1; consecutiveHits = 0; totalHits = 0;
         
@@ -321,117 +310,73 @@
         spawnRate = 1200; timeSinceLastSpawn = 0; baseEnemySpeed = 120;
         
         if(audioCtx) nextNoteTime = audioCtx.currentTime + 0.1;
-        lastTime = performance.now();
-        // Fix: Removed duplicate requestAnimationFrame call that was causing the game to run at 2x speed!
     }
 
     function takeDamage() {
         if (invulnerableTimer > 0) return;
         
-        lives--;
-        els.liveLives.innerText = lives;
-        shake = 30;
-        playSFX('damage');
+        lives--; els.liveLives.innerText = lives; shake = 30; playSFX('damage');
+        multiplier = 1; consecutiveHits = 0; els.liveMult.innerText = `x${multiplier}`; els.liveMult.style.opacity = "0.5";
         
-        multiplier = 1; consecutiveHits = 0;
-        els.liveMult.innerText = `x${multiplier}`;
-        els.liveMult.style.opacity = "0.5";
-        
-        createExplosion(player.x, player.y, '#ff2a2a', 50, 600);
+        createExplosion(player.x, player.y, '#ff2a2a', 30, 600);
 
         if (lives <= 0) {
             spawnFloatingText(player.x, player.y - 40, "CRITICAL DAMAGE", '#ff2a2a');
             gameOver();
         } else {
-            invulnerableTimer = 2.0;
-            enemies = []; lasers = [];
+            invulnerableTimer = 2.0; enemies = []; lasers = [];
             spawnFloatingText(player.x, player.y - 40, "DAMAGE TAKEN", '#ff2a2a');
         }
     }
 
     function gameOver() {
-        state = 'GAMEOVER';
-        shake = 40;
-        
-        if (score > savedHighScore) {
-            savedHighScore = score;
-            localStorage.setItem('neonHighScore', savedHighScore);
-        }
-        
-        els.finalScore.innerText = score;
-        els.highScoreText.innerText = savedHighScore;
-        els.finalRank.innerText = getRank(score);
-        
+        state = 'GAMEOVER'; shake = 40;
+        if (score > savedHighScore) { savedHighScore = score; localStorage.setItem('neonHighScore', savedHighScore); }
+        els.finalScore.innerText = score; els.highScoreText.innerText = savedHighScore; els.finalRank.innerText = getRank(score);
         screens.hud.classList.add('hidden');
         setTimeout(() => screens.gameOver.classList.remove('hidden'), 500);
     }
 
     function triggerPhaseUp() {
-        phase++; els.livePhase.innerText = phase;
-        globalHue = (globalHue + 60) % 360;
-        playSFX('phaseUp');
-        
-        els.announce.innerText = `PHASE ${phase}`;
-        els.announce.style.color = `hsl(${globalHue}, 100%, 60%)`;
-        els.announce.style.textShadow = `0 0 20px hsl(${globalHue}, 100%, 60%)`;
-        els.announce.classList.add('announce-active');
-        shake = 15;
-        
+        phase++; els.livePhase.innerText = phase; globalHue = (globalHue + 60) % 360; playSFX('phaseUp');
+        els.announce.innerText = `PHASE ${phase}`; els.announce.style.color = `hsl(${globalHue}, 100%, 60%)`;
+        els.announce.classList.add('announce-active'); shake = 15;
         setTimeout(() => els.announce.classList.remove('announce-active'), 1500);
-
-        player.speed += 0.3; baseEnemySpeed += 20;
-        spawnRate = Math.max(300, spawnRate - 100);
+        player.speed += 0.3; baseEnemySpeed += 20; spawnRate = Math.max(300, spawnRate - 100);
     }
 
     function spawnEnemy() {
-        const angle = Math.random() * Math.PI * 2;
-        const spawnDist = Math.max(width, height) + 50;
+        const angle = Math.random() * Math.PI * 2; const spawnDist = Math.max(width, height) + 50;
         const type = Math.random() > 0.8 && phase >= 2 ? 'homing' : 'basic';
-        enemies.push({
-            x: centerX + Math.cos(angle) * spawnDist, y: centerY + Math.sin(angle) * spawnDist,
-            radius: coreRadius * 0.3 + (Math.random() * 4),
-            speed: baseEnemySpeed + (Math.random() * 50),
-            type: type, wobble: Math.random() * Math.PI * 2
-        });
+        enemies.push({ x: centerX + Math.cos(angle) * spawnDist, y: centerY + Math.sin(angle) * spawnDist, radius: coreRadius * 0.3 + (Math.random() * 4), speed: baseEnemySpeed + (Math.random() * 50), type: type, wobble: Math.random() * Math.PI * 2 });
     }
 
     function spawnLaser() {
         if(phase < 5) return; 
-        let targetAngle = player.angle + (player.dir * 1.5); 
-        lasers.push({ angle: targetAngle, state: 'warning', timer: 1.5, width: 0 });
+        let targetAngle = player.angle + (player.dir * 1.5); lasers.push({ angle: targetAngle, state: 'warning', timer: 1.5, width: 0 });
     }
 
     function spawnHeart() {
-        let angle = Math.random() * Math.PI * 2;
-        let dist = Math.max(width, height) + 50;
+        let angle = Math.random() * Math.PI * 2; let dist = Math.max(width, height) + 50;
         hearts.push({ x: centerX + Math.cos(angle) * dist, y: centerY + Math.sin(angle) * dist, vx: -Math.cos(angle) * 40, vy: -Math.sin(angle) * 40, pulse: 0 });
     }
 
-    function spawnFloatingText(x, y, text, color) {
-        floatingTexts.push({ x, y, text, life: 1.0, color });
-    }
+    function spawnFloatingText(x, y, text, color) { floatingTexts.push({ x, y, text, life: 1.0, color }); }
 
     function createExplosion(x, y, color, count, velocity = 300) {
-        for(let i=0; i<count; i++) {
-            particles.push({
-                x: x, y: y,
-                vx: (Math.random() - 0.5) * velocity, vy: (Math.random() - 0.5) * velocity,
-                life: 1.0 + Math.random() * 0.5, color: color, size: Math.random() * 4 + 1
-            });
+        // Reduced max particle count to optimize mobile rendering
+        let optimizedCount = Math.min(count, 20);
+        for(let i=0; i<optimizedCount; i++) {
+            particles.push({ x: x, y: y, vx: (Math.random() - 0.5) * velocity, vy: (Math.random() - 0.5) * velocity, life: 1.0 + Math.random() * 0.5, color: color, size: Math.random() * 4 + 1 });
         }
     }
 
     function getOrbitPos(angle, t) {
         let r = baseOrbitRadius; let tx, ty;
-        if (phase === 1) {
-            tx = Math.cos(angle) * r; ty = Math.sin(angle) * r;
-        } else if (phase === 2) {
-            r += Math.sin(angle * 6 + t * 5) * (r*0.15); tx = Math.cos(angle) * r; ty = Math.sin(angle) * r;
-        } else if (phase === 3) {
-            tx = Math.cos(angle) * (r + Math.sin(t*4)*(r*0.3)); ty = Math.sin(angle) * (r - Math.sin(t*4)*(r*0.2));
-        } else {
-            tx = Math.cos(angle) * (r + Math.sin(angle*3 + t*5)*(r*0.25)); ty = Math.sin(angle * 2) * (r * 0.8) + Math.cos(t*6)*(r*0.1); 
-        }
+        if (phase === 1) { tx = Math.cos(angle) * r; ty = Math.sin(angle) * r; } 
+        else if (phase === 2) { r += Math.sin(angle * 6 + t * 5) * (r*0.15); tx = Math.cos(angle) * r; ty = Math.sin(angle) * r; } 
+        else if (phase === 3) { tx = Math.cos(angle) * (r + Math.sin(t*4)*(r*0.3)); ty = Math.sin(angle) * (r - Math.sin(t*4)*(r*0.2)); } 
+        else { tx = Math.cos(angle) * (r + Math.sin(angle*3 + t*5)*(r*0.25)); ty = Math.sin(angle * 2) * (r * 0.8) + Math.cos(t*6)*(r*0.1); }
         return { x: centerX + tx, y: centerY + ty };
     }
 
@@ -440,57 +385,62 @@
         if (sides <= 2) { ctx.arc(x, y, radius, 0, Math.PI * 2); } 
         else {
             for (let i = 0; i < sides; i++) {
-                let a = rotation + (i * Math.PI * 2) / sides;
-                let px = x + Math.cos(a) * radius; let py = y + Math.sin(a) * radius;
+                let a = rotation + (i * Math.PI * 2) / sides; let px = x + Math.cos(a) * radius; let py = y + Math.sin(a) * radius;
                 if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
             }
             ctx.closePath();
         }
-        ctx.fillStyle = color; ctx.shadowBlur = 15; ctx.shadowColor = color; ctx.fill(); ctx.shadowBlur = 0;
+        ctx.fillStyle = color; ctx.fill(); 
+        
+        // Fast fake-glow layer
+        ctx.beginPath();
+        if (sides <= 2) { ctx.arc(x, y, radius + 4, 0, Math.PI * 2); } 
+        else {
+            for (let i = 0; i < sides; i++) {
+                let a = rotation + (i * Math.PI * 2) / sides; let px = x + Math.cos(a) * (radius+4); let py = y + Math.sin(a) * (radius+4);
+                if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+            }
+            ctx.closePath();
+        }
+        ctx.fillStyle = color.replace(')', ', 0.3)').replace('hsl', 'hsla'); 
+        ctx.fill();
     }
 
     function drawHeartPath(x, y, size, pulse) {
         let s = size + Math.sin(pulse) * 3;
         ctx.save(); ctx.translate(x, y); ctx.scale(s/20, s/20);
         ctx.beginPath(); ctx.moveTo(0, -5); ctx.bezierCurveTo(-10, -15, -20, -5, 0, 10); ctx.bezierCurveTo(20, -5, 10, -15, 0, -5);
-        ctx.fillStyle = '#ff2a2a'; ctx.shadowBlur = 20; ctx.shadowColor = '#ff2a2a'; ctx.fill(); ctx.restore();
+        ctx.fillStyle = '#ff2a2a'; ctx.fill(); ctx.restore();
     }
 
     function update(dt) {
-        const dtSec = dt / 1000;
-        gameTime += dtSec;
+        const dtSec = dt / 1000; gameTime += dtSec;
         let playerColor = `hsl(${globalHue}, 100%, 60%)`;
 
         if (state === 'PLAYING') {
             processMusic();
-            
             if (invulnerableTimer > 0) invulnerableTimer -= dtSec;
 
-            if (score >= nextLifeScore) { spawnHeart(); nextLifeScore += 100; spawnFloatingText(centerX, centerY - 80, "EXTRA LIFE DEPLOYED", '#ff2a2a'); }
-
+            if (score >= nextLifeScore) { spawnHeart(); nextLifeScore += 100; spawnFloatingText(centerX, centerY - 80, "EXTRA LIFE", '#ff2a2a'); }
             if (totalHits > 0 && totalHits % 15 === 0 && phase === Math.floor(totalHits/15)) triggerPhaseUp();
 
-            player.angle += player.speed * player.dir * dtSec;
-            player.rotation += player.spinSpeed * dtSec;
-            player.spinSpeed *= 0.9;
+            player.angle += player.speed * player.dir * dtSec; player.rotation += player.spinSpeed * dtSec; player.spinSpeed *= 0.9;
             if(Math.abs(player.spinSpeed) < 2) player.spinSpeed = 2 * player.dir;
 
             let pos = getOrbitPos(player.angle, gameTime);
             player.x = pos.x; player.y = pos.y;
-            player.trail.push({x: player.x, y: player.y, alpha: 1});
-            if (player.trail.length > 20) player.trail.shift();
+            player.trail.push({x: player.x, y: player.y, alpha: 1}); if (player.trail.length > 20) player.trail.shift();
 
             timeSinceLastSpawn += dt;
             if (timeSinceLastSpawn > spawnRate) {
-                spawnEnemy(); timeSinceLastSpawn = 0;
-                if(Math.random() < 0.2 + (phase*0.05)) spawnLaser();
+                spawnEnemy(); timeSinceLastSpawn = 0; if(Math.random() < 0.2 + (phase*0.05)) spawnLaser();
             }
 
             for (let i = hearts.length - 1; i >= 0; i--) {
                 let h = hearts[i]; h.x += h.vx * dtSec; h.y += h.vy * dtSec; h.pulse += dtSec * 8;
                 if (Math.hypot(player.x - h.x, player.y - h.y) < player.radius + 20) {
                     lives++; els.liveLives.innerText = lives; playSFX('heart'); hearts.splice(i, 1);
-                    spawnFloatingText(player.x, player.y, "+1 LIFE", '#ff2a2a'); createExplosion(player.x, player.y, '#ff2a2a', 20, 150); continue;
+                    spawnFloatingText(player.x, player.y, "+1 LIFE", '#ff2a2a'); createExplosion(player.x, player.y, '#ff2a2a', 15, 150); continue;
                 }
                 if (Math.hypot(centerX - h.x, centerY - h.y) > Math.max(width, height) + 200) hearts.splice(i, 1);
             }
@@ -518,25 +468,20 @@
                     e.x += (dx / dist) * e.speed * dtSec + Math.cos(e.wobble)*1.5; e.y += (dy / dist) * e.speed * dtSec + Math.sin(e.wobble)*1.5;
                 }
 
-                let distToCore = Math.hypot(centerX - e.x, centerY - e.y);
-
-                if (distToCore < coreRadius) {
-                    enemies.splice(i, 1);
-                    totalHits++; consecutiveHits++; score += multiplier; playSFX('score');
+                if (Math.hypot(centerX - e.x, centerY - e.y) < coreRadius) {
+                    enemies.splice(i, 1); totalHits++; consecutiveHits++; score += multiplier; playSFX('score');
                     
                     if (consecutiveHits > 0 && consecutiveHits % 10 === 0) {
-                        multiplier++; els.liveMult.innerText = `x${multiplier}`; els.liveMult.style.opacity = "1.0";
+                        multiplier++; els.liveMult.innerText = `x${multiplier}`;
                         els.liveMult.classList.add('mult-bump'); setTimeout(() => els.liveMult.classList.remove('mult-bump'), 200);
                         spawnFloatingText(centerX, centerY - 60, `COMBO x${multiplier}!`, 'var(--combo)'); shake = Math.max(shake, 12);
                     }
 
                     els.liveScore.innerText = score; els.bgScore.innerText = score;
                     els.bgScore.style.transform = `translateY(-50%) scale(1.1)`; setTimeout(() => els.bgScore.style.transform = `translateY(-50%) scale(1)`, 100);
-                    corePulse = 1.0; shake = Math.min(shake + 2, 8); createExplosion(centerX, centerY, playerColor, 10, 150);
-                    let floatColor = multiplier > 1 ? 'var(--combo)' : '#fff';
-                    spawnFloatingText(centerX + (Math.random()-0.5)*40, centerY - 30, `+${multiplier}`, floatColor); continue;
+                    corePulse = 1.0; shake = Math.min(shake + 2, 8); createExplosion(centerX, centerY, playerColor, 8, 150);
+                    spawnFloatingText(centerX + (Math.random()-0.5)*40, centerY - 30, `+${multiplier}`, multiplier > 1 ? 'var(--combo)' : '#fff'); continue;
                 }
-
                 if (Math.hypot(player.x - e.x, player.y - e.y) < player.radius + e.radius) takeDamage();
             }
         }
@@ -549,7 +494,6 @@
             let p = particles[i]; p.x += p.vx * dtSec; p.y += p.vy * dtSec; p.life -= dtSec;
             if (p.life <= 0) particles.splice(i, 1);
         }
-
         for (let i = floatingTexts.length - 1; i >= 0; i--) {
             let ft = floatingTexts[i]; ft.y -= dtSec * 50; ft.life -= dtSec * 1.5;
             if (ft.life <= 0) floatingTexts.splice(i, 1);
@@ -577,20 +521,20 @@
         ctx.lineWidth = 3; ctx.stroke();
 
         lasers.forEach(l => {
-            let lx = centerX + Math.cos(l.angle) * Math.max(width, height);
-            let ly = centerY + Math.sin(l.angle) * Math.max(width, height);
+            let lx = centerX + Math.cos(l.angle) * Math.max(width, height); let ly = centerY + Math.sin(l.angle) * Math.max(width, height);
             ctx.beginPath(); ctx.moveTo(centerX, centerY); ctx.lineTo(lx, ly);
             if (l.state === 'warning') {
                 ctx.strokeStyle = `rgba(255, 0, 0, ${0.3 + Math.sin(gameTime*20)*0.2})`;
                 ctx.lineWidth = 2; ctx.setLineDash([10, 10]); ctx.stroke(); ctx.setLineDash([]);
             } else {
-                ctx.strokeStyle = '#fff'; ctx.lineWidth = l.width; ctx.shadowBlur = 20; ctx.shadowColor = '#f00'; ctx.stroke(); ctx.shadowBlur = 0;
+                ctx.strokeStyle = '#fff'; ctx.lineWidth = l.width; ctx.stroke(); 
+                ctx.strokeStyle = 'rgba(255,0,0,0.5)'; ctx.lineWidth = l.width + 10; ctx.stroke(); // Fake fast glow
             }
         });
 
-        ctx.beginPath();
-        ctx.arc(centerX, centerY, coreRadius + (corePulse * 15), 0, Math.PI * 2);
-        ctx.fillStyle = '#fff'; ctx.shadowBlur = 30 * corePulse + 10; ctx.shadowColor = playerColor; ctx.fill(); ctx.shadowBlur = 0;
+        // Fast Core Rendering
+        ctx.beginPath(); ctx.arc(centerX, centerY, coreRadius + (corePulse * 15), 0, Math.PI * 2); ctx.fillStyle = '#fff'; ctx.fill();
+        ctx.beginPath(); ctx.arc(centerX, centerY, coreRadius + 15 + (corePulse * 30), 0, Math.PI * 2); ctx.fillStyle = `hsla(${globalHue}, 100%, 60%, ${0.2 + corePulse*0.3})`; ctx.fill(); // Fake glow
 
         hearts.forEach(h => drawHeartPath(h.x, h.y, 18, h.pulse));
 
@@ -612,14 +556,12 @@
             ctx.beginPath();
             if(e.type === 'homing') drawPolygon(e.x, e.y, e.radius+2, 4, e.wobble, enemyColor);
             else {
-                ctx.arc(e.x, e.y, e.radius, 0, Math.PI * 2); ctx.fillStyle = enemyColor; ctx.shadowBlur = 15; ctx.shadowColor = enemyColor; ctx.fill(); ctx.shadowBlur = 0;
+                ctx.arc(e.x, e.y, e.radius, 0, Math.PI * 2); ctx.fillStyle = enemyColor; ctx.fill();
+                ctx.beginPath(); ctx.arc(e.x, e.y, e.radius + 4, 0, Math.PI * 2); ctx.fillStyle = `hsla(${(globalHue + 180) % 360}, 100%, 60%, 0.3)`; ctx.fill();
             }
         });
 
-        particles.forEach(p => {
-            ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-            ctx.fillStyle = p.color; ctx.globalAlpha = Math.max(0, p.life); ctx.fill();
-        });
+        particles.forEach(p => { ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); ctx.fillStyle = p.color; ctx.globalAlpha = Math.max(0, p.life); ctx.fill(); });
         ctx.globalAlpha = 1.0;
 
         ctx.font = "bold 20px 'Segoe UI'"; ctx.textAlign = "center";
@@ -628,18 +570,15 @@
         ctx.restore(); 
     }
 
-    // Main perpetual game loop
     function gameLoop(timestamp) {
         let dt = timestamp - lastTime; lastTime = timestamp;
-        if (dt > 100) dt = 16; 
-        
-        update(dt); 
-        draw();
-        
+        // Cap DeltaTime to 32ms (~30fps) to prevent physics jumps if device lags
+        if (dt > 32) dt = 32; 
+        update(dt); draw();
         requestAnimationFrame(gameLoop);
     }
     
-    // Kick off the loop immediately when the script loads
+    // Initial call
     requestAnimationFrame(gameLoop);
 </script>
 </body>
