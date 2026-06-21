@@ -53,7 +53,6 @@
             z-index: -1; transition: all 0.2s ease; margin: 0;
         }
 
-        /* Fixed the ghost-click issue by adding visibility: hidden to the transition */
         .screen { 
             display: flex; flex-direction: column; align-items: center; 
             position: absolute; width: 100%; height: 100%; justify-content: center; 
@@ -68,7 +67,7 @@
             opacity: 0; 
             pointer-events: none; 
             visibility: hidden; 
-            transition: opacity 0.3s ease, visibility 0s 0.3s; /* Delay visibility hidden so it fades out first */
+            transition: opacity 0.3s ease, visibility 0s 0.3s;
         }
 
         .btn {
@@ -184,7 +183,7 @@
             gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
             osc.connect(gain); gain.connect(audioCtx.destination);
             osc.start(); osc.stop(audioCtx.currentTime + duration);
-        } catch(e) {} // Failsafe for tab-switching
+        } catch(e) {}
     }
 
     function playSFX(name) {
@@ -212,11 +211,9 @@
         let baseTempo = 0.22; 
         let tempo = Math.max(0.12, baseTempo - (phase * 0.015)); 
         
-        // Anti-lag Failsafe: Reset time if tab was backgrounded
         if (nextNoteTime < audioCtx.currentTime) nextNoteTime = audioCtx.currentTime + 0.05;
         
         let notesScheduled = 0;
-        // Anti-lag Failsafe: Max 3 notes per frame
         while (nextNoteTime < audioCtx.currentTime + 0.1 && notesScheduled < 3) {
             let freqs = [65.41, 65.41, 73.42, 82.41, 65.41, 98.00, 82.41, 73.42]; 
             let f = freqs[musicIntervalStep % freqs.length] * (1 + (phase-1) * 0.02);
@@ -249,7 +246,6 @@
         if (s < 1000) return "Galactic"; return "Ascendant";
     }
 
-    // Input Handling - Attached ONLY to canvas to prevent phantom button presses
     function handleInput(e) {
         if (state === 'PLAYING') {
             e.preventDefault();
@@ -324,7 +320,9 @@
             spawnFloatingText(player.x, player.y - 40, "CRITICAL DAMAGE", '#ff2a2a');
             gameOver();
         } else {
-            invulnerableTimer = 2.0; enemies = []; lasers = [];
+            invulnerableTimer = 2.0; 
+            enemies = []; 
+            lasers = [];
             spawnFloatingText(player.x, player.y - 40, "DAMAGE TAKEN", '#ff2a2a');
         }
     }
@@ -364,7 +362,6 @@
     function spawnFloatingText(x, y, text, color) { floatingTexts.push({ x, y, text, life: 1.0, color }); }
 
     function createExplosion(x, y, color, count, velocity = 300) {
-        // Reduced max particle count to optimize mobile rendering
         let optimizedCount = Math.min(count, 20);
         for(let i=0; i<optimizedCount; i++) {
             particles.push({ x: x, y: y, vx: (Math.random() - 0.5) * velocity, vy: (Math.random() - 0.5) * velocity, life: 1.0 + Math.random() * 0.5, color: color, size: Math.random() * 4 + 1 });
@@ -392,7 +389,6 @@
         }
         ctx.fillStyle = color; ctx.fill(); 
         
-        // Fast fake-glow layer
         ctx.beginPath();
         if (sides <= 2) { ctx.arc(x, y, radius + 4, 0, Math.PI * 2); } 
         else {
@@ -452,7 +448,10 @@
                     l.width *= 0.8;
                     let pAng = Math.atan2(player.y - centerY, player.x - centerX);
                     let diff = Math.abs(Math.atan2(Math.sin(pAng - l.angle), Math.cos(pAng - l.angle)));
-                    if (diff < 0.15) takeDamage();
+                    if (diff < 0.15) { 
+                        takeDamage(); 
+                        break; // <-- THE CRASH FIX
+                    }
                     if (l.timer <= 0) lasers.splice(i, 1);
                 }
             }
@@ -482,7 +481,11 @@
                     corePulse = 1.0; shake = Math.min(shake + 2, 8); createExplosion(centerX, centerY, playerColor, 8, 150);
                     spawnFloatingText(centerX + (Math.random()-0.5)*40, centerY - 30, `+${multiplier}`, multiplier > 1 ? 'var(--combo)' : '#fff'); continue;
                 }
-                if (Math.hypot(player.x - e.x, player.y - e.y) < player.radius + e.radius) takeDamage();
+                
+                if (Math.hypot(player.x - e.x, player.y - e.y) < player.radius + e.radius) {
+                    takeDamage();
+                    break; // <-- THE CRASH FIX
+                }
             }
         }
 
@@ -528,13 +531,12 @@
                 ctx.lineWidth = 2; ctx.setLineDash([10, 10]); ctx.stroke(); ctx.setLineDash([]);
             } else {
                 ctx.strokeStyle = '#fff'; ctx.lineWidth = l.width; ctx.stroke(); 
-                ctx.strokeStyle = 'rgba(255,0,0,0.5)'; ctx.lineWidth = l.width + 10; ctx.stroke(); // Fake fast glow
+                ctx.strokeStyle = 'rgba(255,0,0,0.5)'; ctx.lineWidth = l.width + 10; ctx.stroke(); 
             }
         });
 
-        // Fast Core Rendering
         ctx.beginPath(); ctx.arc(centerX, centerY, coreRadius + (corePulse * 15), 0, Math.PI * 2); ctx.fillStyle = '#fff'; ctx.fill();
-        ctx.beginPath(); ctx.arc(centerX, centerY, coreRadius + 15 + (corePulse * 30), 0, Math.PI * 2); ctx.fillStyle = `hsla(${globalHue}, 100%, 60%, ${0.2 + corePulse*0.3})`; ctx.fill(); // Fake glow
+        ctx.beginPath(); ctx.arc(centerX, centerY, coreRadius + 15 + (corePulse * 30), 0, Math.PI * 2); ctx.fillStyle = `hsla(${globalHue}, 100%, 60%, ${0.2 + corePulse*0.3})`; ctx.fill(); 
 
         hearts.forEach(h => drawHeartPath(h.x, h.y, 18, h.pulse));
 
@@ -572,13 +574,11 @@
 
     function gameLoop(timestamp) {
         let dt = timestamp - lastTime; lastTime = timestamp;
-        // Cap DeltaTime to 32ms (~30fps) to prevent physics jumps if device lags
         if (dt > 32) dt = 32; 
         update(dt); draw();
         requestAnimationFrame(gameLoop);
     }
     
-    // Initial call
     requestAnimationFrame(gameLoop);
 </script>
 </body>
