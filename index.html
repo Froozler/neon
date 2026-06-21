@@ -69,7 +69,6 @@
 
         .btn:active { background: #fff; color: #000; transform: scale(0.95); }
 
-        /* Lore Screen Styling */
         #loreScreen { background-color: var(--bg-color); z-index: 10; }
         .lore-line { opacity: 0; transform: translateY(10px); transition: all 2s ease; color: #c5c6c7; font-size: 1.3rem; letter-spacing: 1px; margin-bottom: 20px; font-style: italic; }
         .lore-visible { opacity: 1; transform: translateY(0); }
@@ -140,7 +139,7 @@
     };
 
     // Game State
-    let state = 'START'; // START, LORE, PLAYING, GAMEOVER
+    let state = 'START'; 
     let score = 0, phase = 1, lives = 5, nextLifeScore = 100;
     let multiplier = 1, consecutiveHits = 0, totalHits = 0;
     let savedHighScore = localStorage.getItem('neonHighScore') || 0;
@@ -153,11 +152,11 @@
     let baseOrbitRadius, coreRadius;
 
     // Entities
-    let player, enemies, particles, floatingTexts, lasers, hearts;
+    let player, enemies = [], particles = [], floatingTexts = [], lasers = [], hearts = [];
     let corePulse = 0;
 
     // Difficulty
-    let spawnRate, timeSinceLastSpawn, baseEnemySpeed;
+    let spawnRate = 1200, timeSinceLastSpawn = 0, baseEnemySpeed = 120;
 
     // Audio System
     let audioCtx;
@@ -212,18 +211,20 @@
         }
     }
 
-    // Tron Synth Bassline
     function processMusic() {
         if (state !== 'PLAYING' || !audioCtx) return;
         
-        // Dynamic Tempo based on Phase
         let baseTempo = 0.22; 
         let tempo = Math.max(0.12, baseTempo - (phase * 0.015)); 
 
+        // Fix: Prevent audio loop freeze if tab is inactive and time desyncs
+        if (nextNoteTime < audioCtx.currentTime) {
+            nextNoteTime = audioCtx.currentTime + 0.1;
+        }
+
         while (nextNoteTime < audioCtx.currentTime + 0.1) {
-            let freqs = [65.41, 65.41, 73.42, 82.41, 65.41, 98.00, 82.41, 73.42]; // Tron-like minor arpeggio
+            let freqs = [65.41, 65.41, 73.42, 82.41, 65.41, 98.00, 82.41, 73.42]; 
             let f = freqs[musicIntervalStep % freqs.length];
-            // Pitch shifts up subtly as game progresses
             f *= (1 + (phase-1) * 0.02);
             
             const osc = audioCtx.createOscillator();
@@ -248,7 +249,6 @@
         centerX = width / 2; centerY = height / 2;
         
         let minDim = Math.min(width, height);
-        // Zoomed out slightly per request
         baseOrbitRadius = minDim * 0.28; 
         coreRadius = minDim * 0.05;
     }
@@ -322,7 +322,7 @@
         
         if(audioCtx) nextNoteTime = audioCtx.currentTime + 0.1;
         lastTime = performance.now();
-        requestAnimationFrame(gameLoop);
+        // Fix: Removed duplicate requestAnimationFrame call that was causing the game to run at 2x speed!
     }
 
     function takeDamage() {
@@ -363,7 +363,7 @@
         els.finalRank.innerText = getRank(score);
         
         screens.hud.classList.add('hidden');
-        setTimeout(() => screens.gameOver.classList.remove('hidden'), 500); // slight delay
+        setTimeout(() => screens.gameOver.classList.remove('hidden'), 500);
     }
 
     function triggerPhaseUp() {
@@ -396,7 +396,7 @@
     }
 
     function spawnLaser() {
-        if(phase < 5) return; // Lasers reserved for Stage 5 onwards
+        if(phase < 5) return; 
         let targetAngle = player.angle + (player.dir * 1.5); 
         lasers.push({ angle: targetAngle, state: 'warning', timer: 1.5, width: 0 });
     }
@@ -543,7 +543,7 @@
 
         if (corePulse > 0) corePulse -= dtSec * 3; if (corePulse < 0) corePulse = 0;
         if (shake > 0) shake *= 0.85; if (shake < 0.5) shake = 0;
-        if (player) player.trail.forEach(t => t.alpha -= dtSec * 2.5);
+        if (player && player.trail) player.trail.forEach(t => t.alpha -= dtSec * 2.5);
         
         for (let i = particles.length - 1; i >= 0; i--) {
             let p = particles[i]; p.x += p.vx * dtSec; p.y += p.vy * dtSec; p.life -= dtSec;
@@ -559,7 +559,7 @@
     function draw() {
         ctx.fillStyle = `rgba(5, 5, 8, ${state === 'GAMEOVER' ? 0.1 : 0.3})`;
         ctx.fillRect(0, 0, width, height);
-        if (state === 'LORE' || state === 'START') return; // Canvas handles background only
+        if (state === 'LORE' || state === 'START') return; 
 
         let playerColor = `hsl(${globalHue}, 100%, 60%)`;
         let enemyColor = `hsl(${(globalHue + 180) % 360}, 100%, 60%)`;
@@ -628,14 +628,18 @@
         ctx.restore(); 
     }
 
+    // Main perpetual game loop
     function gameLoop(timestamp) {
         let dt = timestamp - lastTime; lastTime = timestamp;
         if (dt > 100) dt = 16; 
-        update(dt); draw();
+        
+        update(dt); 
+        draw();
         
         requestAnimationFrame(gameLoop);
     }
     
+    // Kick off the loop immediately when the script loads
     requestAnimationFrame(gameLoop);
 </script>
 </body>
