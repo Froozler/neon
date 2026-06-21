@@ -58,15 +58,20 @@
             position: absolute; width: 100%; height: 100%; justify-content: center; 
             transition: opacity 0.3s ease, visibility 0s 0s;
             visibility: visible;
+            padding: 0 20px; /* Prevents edge touching */
+            box-sizing: border-box;
         }
         
-        h1 { font-size: 4rem; margin: 0; color: #fff; text-transform: uppercase; letter-spacing: 5px; }
-        p { font-size: 1.1rem; color: var(--text-muted); margin-top: 10px; margin-bottom: 5px; max-width: 80%; line-height: 1.6; }
+        h1 { 
+            /* Fixed mobile cut-off: dynamically scales down on small screens */
+            font-size: clamp(2.5rem, 10vw, 4rem); 
+            margin: 0; color: #fff; text-transform: uppercase; 
+            letter-spacing: 5px; text-align: center;
+        }
+        p { font-size: 1.1rem; color: var(--text-muted); margin-top: 10px; margin-bottom: 5px; max-width: 90%; line-height: 1.6; }
         
         .hidden { 
-            opacity: 0; 
-            pointer-events: none; 
-            visibility: hidden; 
+            opacity: 0; pointer-events: none; visibility: hidden; 
             transition: opacity 0.3s ease, visibility 0s 0.3s;
         }
 
@@ -368,12 +373,32 @@
         }
     }
 
+    // UPDATED PROGRESSION SYSTEM 
     function getOrbitPos(angle, t) {
         let r = baseOrbitRadius; let tx, ty;
-        if (phase === 1) { tx = Math.cos(angle) * r; ty = Math.sin(angle) * r; } 
-        else if (phase === 2) { r += Math.sin(angle * 6 + t * 5) * (r*0.15); tx = Math.cos(angle) * r; ty = Math.sin(angle) * r; } 
-        else if (phase === 3) { tx = Math.cos(angle) * (r + Math.sin(t*4)*(r*0.3)); ty = Math.sin(angle) * (r - Math.sin(t*4)*(r*0.2)); } 
-        else { tx = Math.cos(angle) * (r + Math.sin(angle*3 + t*5)*(r*0.25)); ty = Math.sin(angle * 2) * (r * 0.8) + Math.cos(t*6)*(r*0.1); }
+        
+        if (phase <= 2) { 
+            // Phase 1 & 2: Easy Perfect Circle
+            tx = Math.cos(angle) * r; 
+            ty = Math.sin(angle) * r; 
+        } 
+        else if (phase === 3) { 
+            // Phase 3: Subtle Breathing Oval
+            tx = Math.cos(angle) * (r + Math.sin(t*2)*(r*0.15)); 
+            ty = Math.sin(angle) * (r - Math.sin(t*2)*(r*0.1)); 
+        } 
+        else if (phase === 4) { 
+            // Phase 4: Gentle Flower
+            r += Math.sin(angle * 4 + t * 3) * (r*0.1); 
+            tx = Math.cos(angle) * r; 
+            ty = Math.sin(angle) * r; 
+        } 
+        else { 
+            // Phase 5+: Upright Figure 8
+            tx = Math.sin(angle * 2) * (r * 0.7); // Pinched width
+            ty = Math.cos(angle) * (r * 1.2);     // Stretched height
+        }
+        
         return { x: centerX + tx, y: centerY + ty };
     }
 
@@ -450,7 +475,7 @@
                     let diff = Math.abs(Math.atan2(Math.sin(pAng - l.angle), Math.cos(pAng - l.angle)));
                     if (diff < 0.15) { 
                         takeDamage(); 
-                        break; // <-- THE CRASH FIX
+                        break; 
                     }
                     if (l.timer <= 0) lasers.splice(i, 1);
                 }
@@ -484,7 +509,7 @@
                 
                 if (Math.hypot(player.x - e.x, player.y - e.y) < player.radius + e.radius) {
                     takeDamage();
-                    break; // <-- THE CRASH FIX
+                    break; 
                 }
             }
         }
